@@ -35,12 +35,6 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout, onS
   const startScanner = () => {
     if (scannerRef.current) return;
 
-    // Use a unique ID for the scanner element to avoid conflicts
-    const scannerId = "reader";
-
-    // Ensure the element exists before initializing
-    if (!document.getElementById(scannerId)) return;
-
     const config = {
       fps: 10,
       qrbox: { width: 250, height: 250 },
@@ -48,15 +42,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout, onS
       supportedScanTypes: [Html5QrcodeSupportedFormats.QR_CODE]
     };
 
-    const scanner = new Html5QrcodeScanner(scannerId, config, false);
+    const scanner = new Html5QrcodeScanner("reader", config, false);
     
     scanner.render(
       async (decodedText) => {
         // Stop scanning immediately on success
-        if (scannerRef.current) {
-          scannerRef.current.clear();
-          scannerRef.current = null;
-        }
+        scanner.clear();
+        scannerRef.current = null;
         setShowScanner(false);
         
         await processAttendance(decodedText, currentClass);
