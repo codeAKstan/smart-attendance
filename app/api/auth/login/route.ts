@@ -13,13 +13,14 @@ export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
 
-    // Find user by email (or handle ID if you want to support both, but for now strict email/ID mapping in frontend might be needed)
-    // The prompt said "admin@qr.com", so email login is primary.
-    // But existing login supports "Email or Student ID".
-    // I'll check if the input looks like an email. If not, maybe search by studentId?
-    // For admin, it's definitely email.
-    
-    const user = await User.findOne({ email });
+    // Find user by email OR studentId
+    // If the input contains '@', treat it as email, otherwise treat as studentId
+    let user;
+    if (email.includes('@')) {
+      user = await User.findOne({ email });
+    } else {
+      user = await User.findOne({ studentId: email });
+    }
 
     if (!user) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
