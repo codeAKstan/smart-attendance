@@ -18,6 +18,9 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'settings'>('dashboard');
+  const [history, setHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Attendance Session State
   const [showStartModal, setShowStartModal] = useState(false);
@@ -27,6 +30,27 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
   React.useEffect(() => {
     fetchCourses();
   }, [user.id]);
+
+  React.useEffect(() => {
+    if (activeTab === 'history') {
+      fetchHistory();
+    }
+  }, [activeTab]);
+
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await fetch(`/api/lecturer/history?lecturerId=${user.id}`);
+      const data = await res.json();
+      if (data.history) {
+        setHistory(data.history);
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   const fetchCourses = async () => {
     try {
@@ -120,6 +144,8 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
       </header>
 
       <main className="flex-1 px-6 space-y-6">
+        {activeTab === 'dashboard' && (
+        <>
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm flex flex-col gap-2">
@@ -127,7 +153,7 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
               <span className="material-symbols-outlined text-lg">school</span>
               <span className="text-[10px] font-bold uppercase tracking-wide">Courses</span>
             </div>
-            <p className="text-3xl font-bold text-slate-900 dark:text-white">5</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-white">{courses.length}</p>
           </div>
           <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm flex flex-col gap-2">
             <div className="flex items-center gap-2 text-green-500 bg-green-50 w-fit px-2 py-1 rounded-lg">
@@ -252,6 +278,55 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
             </button>
           </div>
         </div>
+        </>
+        )}
+
+        {activeTab === 'history' && (
+          <div className="space-y-4 pt-2">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Attendance History</h3>
+            
+            {loadingHistory ? (
+               <div className="flex justify-center py-20">
+                 <span className="material-symbols-outlined animate-spin text-primary text-4xl">progress_activity</span>
+               </div>
+            ) : history.length === 0 ? (
+               <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                 <span className="material-symbols-outlined text-6xl mb-4 text-slate-200">history_edu</span>
+                 <p className="font-bold">No history found</p>
+                 <p className="text-xs">Past attendance sessions will appear here</p>
+               </div>
+            ) : (
+              history.map((item) => (
+                <div key={item.sessionCode} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm flex items-center justify-between">
+                   <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-xl flex flex-col items-center justify-center">
+                          <span className="text-xs font-bold uppercase">{new Date(item.timestamp).toLocaleString('default', { month: 'short' })}</span>
+                          <span className="text-lg font-black">{new Date(item.timestamp).getDate()}</span>
+                      </div>
+                      <div>
+                          <div className="flex items-center gap-2">
+                             <span className="text-xs font-bold px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-slate-500">{item.courseCode}</span>
+                             <span className="text-xs text-slate-400">{new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                          </div>
+                          <h4 className="font-bold text-slate-900 dark:text-white mt-1">{item.courseName}</h4>
+                      </div>
+                   </div>
+                   <div className="text-right">
+                      <div className="text-2xl font-black text-slate-900 dark:text-white">{item.attendees}</div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">Present</div>
+                   </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+           <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <span className="material-symbols-outlined text-6xl mb-4 text-slate-200">settings</span>
+              <p>Settings coming soon</p>
+           </div>
+        )}
       </main>
 
       {/* Start Attendance Modal */}
@@ -274,16 +349,25 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 w-full bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 pb-safe z-50">
         <div className="flex items-center justify-around h-[70px] max-w-lg mx-auto px-6">
-          <button className="flex flex-col items-center gap-1 text-primary">
-            <span className="material-symbols-outlined text-[24px] filled">grid_view</span>
+          <button 
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'dashboard' ? 'text-primary' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+          >
+            <span className={`material-symbols-outlined text-[24px] ${activeTab === 'dashboard' ? 'filled' : ''}`}>grid_view</span>
             <span className="text-[10px] font-bold">Dashboard</span>
           </button>
-          <button className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-            <span className="material-symbols-outlined text-[24px]">history</span>
+          <button 
+            onClick={() => setActiveTab('history')}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'history' ? 'text-primary' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+          >
+            <span className={`material-symbols-outlined text-[24px] ${activeTab === 'history' ? 'filled' : ''}`}>history</span>
             <span className="text-[10px] font-medium">History</span>
           </button>
-          <button className="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-            <span className="material-symbols-outlined text-[24px]">settings</span>
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`flex flex-col items-center gap-1 ${activeTab === 'settings' ? 'text-primary' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}`}
+          >
+            <span className={`material-symbols-outlined text-[24px] ${activeTab === 'settings' ? 'filled' : ''}`}>settings</span>
             <span className="text-[10px] font-medium">Settings</span>
           </button>
         </div>

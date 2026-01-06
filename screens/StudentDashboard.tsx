@@ -16,16 +16,11 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout, onS
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const currentClass: Course = {
-    id: 'cs101',
-    code: 'CS101',
-    name: 'Intro to Algorithms',
-    room: 'Room 304',
-    time: '09:00 AM',
-    imageUrl: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=400'
-  };
+  const [currentClass, setCurrentClass] = useState<Course | null>(null);
 
-  const handleScan = async (course: Course) => {
+  const handleScan = async () => {
+    // Determine the course based on the scan if possible, or use currentClass as fallback
+    // For now, we assume the student is scanning for the currentClass displayed
     if (showScanner) {
       stopScanner();
       return;
@@ -57,7 +52,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout, onS
         async (decodedText) => {
           // Stop scanning immediately on success
           await stopScanner();
-          await processAttendance(decodedText, currentClass);
+          await processAttendance(decodedText);
         },
         (errorMessage) => {
           // ignore errors
@@ -86,7 +81,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout, onS
         // Clear the temporary scanner
         html5QrCode.clear();
         
-        await processAttendance(decodedText, currentClass);
+        await processAttendance(decodedText);
     } catch (err) {
         console.error("Error scanning file:", err);
         setScanMessage("No QR code found");
@@ -112,18 +107,21 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout, onS
     setShowScanner(false);
   };
 
-  const processAttendance = async (sessionCode: string, course: Course) => {
+  const processAttendance = async (sessionCode: string) => {
     setIsScanning(true);
     setScanMessage('Verifying...');
 
     try {
+      // Parse courseCode from sessionCode if possible, e.g. "CS101-123456"
+      const extractedCourseCode = sessionCode.split('-')[0] || 'Unknown';
+      
       const res = await fetch('/api/attendance/record', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentId: user.id,
           studentName: user.name,
-          courseCode: course.code,
+          courseCode: extractedCourseCode,
           sessionCode: sessionCode,
         }),
       });
@@ -147,7 +145,7 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout, onS
   const handleManualEntry = async () => {
     const code = prompt("Please enter the session code displayed on the lecturer's screen (e.g. CS101-17...)");
     if (code) {
-      await processAttendance(code, currentClass);
+      await processAttendance(code);
     }
   };
 
@@ -180,8 +178,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout, onS
       </div>
 
       <div className="flex-1 flex flex-col items-center px-6 pb-6">
-        {/* Course Banner */}
-        
+        {/* Course Banner - REMOVED MOCK DATA */}
+        {currentClass && (
+        <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">location_on</span>
+            {currentClass.code} - {currentClass.name.toUpperCase()}
+        </div>
+        )}
 
         {/* Title */}
         <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2 text-center">Scan for Attendance</h2>
@@ -191,13 +194,13 @@ const StudentDashboard: React.FC<StudentDashboardProps> = ({ user, onLogout, onS
 
         {/* Camera Viewfinder */}
         <div 
-          onClick={() => handleScan(currentClass)}
+          onClick={() => handleScan()}
           className="relative w-full aspect-[3/4] rounded-[2.5rem] overflow-hidden shadow-2xl cursor-pointer group bg-black"
         >
           {/* Blurred Background Image (Simulating Camera Feed) */}
           <div 
             className="absolute inset-0 bg-cover bg-center opacity-80 blur-[2px] scale-105" 
-            style={{ backgroundImage: `url(${currentClass.imageUrl})` }}
+            style={{ backgroundImage: `url(${currentClass?.imageUrl || 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=400'})` }}
           />
           
           {/* Scanner Container - Behind the UI overlay */}
