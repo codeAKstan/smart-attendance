@@ -1,20 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserRole } from '../../types';
 
-const MOCK_USERS = [
-  { id: '1', name: 'Prof. Sarah Williams', email: 's.williams@university.edu', role: UserRole.LECTURER, avatar: 'https://i.pravatar.cc/150?u=1' },
-  { id: '2', name: 'Alex Johnson', email: 'alex.j@university.edu', role: UserRole.STUDENT, avatar: 'https://i.pravatar.cc/150?u=2' },
-  { id: '3', name: 'Maya K. Lee', email: 'maya.lee@university.edu', role: UserRole.STUDENT, avatar: 'https://i.pravatar.cc/150?u=3' },
-  { id: '4', name: 'Dr. David Chen', email: 'd.chen@university.edu', role: UserRole.LECTURER, avatar: 'https://i.pravatar.cc/150?u=4' },
-  { id: '5', name: 'Emily Watson', email: 'emily.w@university.edu', role: UserRole.STUDENT, avatar: 'https://i.pravatar.cc/150?u=5' },
-  { id: '6', name: 'James Peterson', email: 'j.peterson@university.edu', role: UserRole.STUDENT, avatar: 'https://i.pravatar.cc/150?u=6' },
-];
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatar: string;
+}
 
 const AdminUsers: React.FC = () => {
   const [filter, setFilter] = useState<'ALL' | UserRole>('ALL');
   const [search, setSearch] = useState('');
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredUsers = MOCK_USERS.filter(user => {
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/users');
+      const data = await res.json();
+      if (data.users) {
+        setUsers(data.users);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredUsers = users.filter(user => {
     const matchesFilter = filter === 'ALL' || user.role === filter;
     const matchesSearch = user.name.toLowerCase().includes(search.toLowerCase()) || 
                           user.email.toLowerCase().includes(search.toLowerCase());
@@ -82,37 +101,40 @@ const AdminUsers: React.FC = () => {
 
       {/* User List */}
       <div className="p-4 flex flex-col gap-3 pb-24 overflow-y-auto">
-        {filteredUsers.map(user => (
-          <div key={user.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm flex items-center gap-4 relative overflow-hidden group">
-            <img 
-              src={user.avatar} 
-              alt={user.name} 
-              className="h-12 w-12 rounded-full object-cover border border-slate-100 dark:border-slate-700"
-            />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">{user.name}</h3>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${getRoleBadgeStyle(user.role)}`}>
-                  {formatRole(user.role)}
-                </span>
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <span className="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
+          </div>
+        ) : (
+          <>
+            {filteredUsers.map(user => (
+              <div key={user.id} className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm flex items-center gap-4 relative overflow-hidden group">
+                <img 
+                  src={user.avatar} 
+                  alt={user.name} 
+                  className="h-12 w-12 rounded-full object-cover border border-slate-100 dark:border-slate-700"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">{user.name}</h3>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${getRoleBadgeStyle(user.role)}`}>
+                      {formatRole(user.role)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+                </div>
+                <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2">
+                  <span className="material-symbols-outlined">more_vert</span>
+                </button>
               </div>
-              <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
-            </div>
-            <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-2">
-              <span className="material-symbols-outlined">more_vert</span>
-            </button>
-            
-            {/* Swipe Action Simulation (Visual only for now) */}
-            {/* <div className="absolute right-0 top-0 bottom-0 w-20 bg-red-500 flex items-center justify-center text-white translate-x-full group-hover:translate-x-0 transition-transform cursor-pointer">
-               <span className="material-symbols-outlined">delete</span>
-            </div> */}
-          </div>
-        ))}
-        {filteredUsers.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-            <span className="material-symbols-outlined text-4xl mb-2">search_off</span>
-            <p>No users found</p>
-          </div>
+            ))}
+            {filteredUsers.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                <span className="material-symbols-outlined text-4xl mb-2">search_off</span>
+                <p>No users found</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

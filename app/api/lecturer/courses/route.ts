@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import CourseRequest from '@/models/CourseRequest';
+import Attendance from '@/models/Attendance';
 
 export async function GET(req: Request) {
   await dbConnect();
@@ -18,7 +19,16 @@ export async function GET(req: Request) {
       status: 'APPROVED',
     }).sort({ createdAt: -1 });
 
-    return NextResponse.json({ courses }, { status: 200 });
+    // Calculate unique students who have attended any of these courses
+    const courseCodes = courses.map(c => c.courseCode);
+    const uniqueStudents = await Attendance.distinct('studentId', {
+      courseCode: { $in: courseCodes }
+    });
+
+    return NextResponse.json({ 
+      courses,
+      totalStudents: uniqueStudents.length 
+    }, { status: 200 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

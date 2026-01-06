@@ -18,6 +18,7 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const [totalUniqueStudents, setTotalUniqueStudents] = useState(0);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'settings'>('dashboard');
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -115,6 +116,9 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
         }));
         setCourses(formattedCourses);
       }
+      if (data.totalStudents !== undefined) {
+        setTotalUniqueStudents(data.totalStudents);
+      }
     } catch (error) {
       console.error('Error fetching courses:', error);
     } finally {
@@ -207,7 +211,7 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
               <span className="material-symbols-outlined text-lg">groups</span>
               <span className="text-[10px] font-bold uppercase tracking-wide">Students</span>
             </div>
-            <p className="text-3xl font-bold text-slate-900 dark:text-white">185</p>
+            <p className="text-3xl font-bold text-slate-900 dark:text-white">{totalUniqueStudents}</p>
           </div>
         </div>
 

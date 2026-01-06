@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../../types';
 import AddLecturerModal from './AddLecturerModal';
 
@@ -9,6 +9,33 @@ interface AdminHomeProps {
 const AdminHome: React.FC<AdminHomeProps> = ({ user }) => {
   const [showAddLecturer, setShowAddLecturer] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{email: string, password: string} | null>(null);
+  const [stats, setStats] = useState({
+    students: 0,
+    lecturers: 0,
+    courses: 0,
+    checkins: 0
+  });
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      const res = await fetch('/api/admin/dashboard');
+      const data = await res.json();
+      if (data.stats) setStats(data.stats);
+      if (data.recentActivity) setRecentActivity(data.recentActivity);
+      if (data.chartData) setChartData(data.chartData);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleActionClick = (action: string) => {
     console.log('Action clicked:', action);
@@ -118,17 +145,17 @@ const AdminHome: React.FC<AdminHomeProps> = ({ user }) => {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4">
         {[
-          { label: 'Total Students', value: '1,240', trend: '+2%', trendColor: 'text-green-600 bg-green-100', icon: 'school', iconColor: 'text-blue-600 bg-blue-50' },
-          { label: 'Lecturers', value: '85', trend: '0%', trendColor: 'text-slate-600 bg-slate-100', icon: 'cast_for_education', iconColor: 'text-purple-600 bg-purple-50' },
-          { label: 'Active Courses', value: '42', trend: '~5%', trendColor: 'text-green-600 bg-green-100', icon: 'book', iconColor: 'text-orange-600 bg-orange-50' },
-          { label: 'Check-ins', value: '89%', trend: '~12%', trendColor: 'text-green-600 bg-green-100', icon: 'check_circle', iconColor: 'text-green-600 bg-green-50' },
+          { label: 'Total Students', value: loading ? '...' : stats.students.toString(), trend: '+2%', trendColor: 'text-green-600 bg-green-100', icon: 'school', iconColor: 'text-blue-600 bg-blue-50' },
+          { label: 'Lecturers', value: loading ? '...' : stats.lecturers.toString(), trend: '0%', trendColor: 'text-slate-600 bg-slate-100', icon: 'cast_for_education', iconColor: 'text-purple-600 bg-purple-50' },
+          { label: 'Active Courses', value: loading ? '...' : stats.courses.toString(), trend: '~5%', trendColor: 'text-green-600 bg-green-100', icon: 'book', iconColor: 'text-orange-600 bg-orange-50' },
+          { label: 'Check-ins', value: loading ? '...' : stats.checkins.toString(), trend: '~12%', trendColor: 'text-green-600 bg-green-100', icon: 'check_circle', iconColor: 'text-green-600 bg-green-50' },
         ].map((stat, index) => (
           <div key={index} className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm flex flex-col gap-3">
             <div className="flex justify-between items-start">
               <div className={`p-2 rounded-lg ${stat.iconColor}`}>
                 <span className="material-symbols-outlined text-[20px]">{stat.icon}</span>
               </div>
-              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${stat.trendColor}`}>{stat.trend}</span>
+              {/* <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${stat.trendColor}`}>{stat.trend}</span> */}
             </div>
             <div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{stat.label}</p>
@@ -190,24 +217,23 @@ const AdminHome: React.FC<AdminHomeProps> = ({ user }) => {
       <div>
         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Recent Activity</h3>
         <div className="flex flex-col gap-3">
-            {[
-                { title: 'Class CS101 Started', desc: 'Lecturer Dr. Sarah Smith initiated session.', time: '2m ago', icon: 'sensors', bg: 'bg-blue-100', color: 'text-blue-600' },
-                { title: 'New Check-in', desc: 'John Doe (Student ID: 202401) checked in.', time: '15m ago', icon: 'person_check', bg: 'bg-green-100', color: 'text-green-600' },
-                { title: 'Low Attendance Alert', desc: 'Physics 202 is below 60% threshold.', time: '1h ago', icon: 'warning', bg: 'bg-amber-100', color: 'text-amber-600' },
-            ].map((item, i) => (
+            {recentActivity.length === 0 ? (
+                <p className="text-slate-500 text-sm">No recent activity.</p>
+            ) : (
+                recentActivity.map((item, i) => (
                 <div key={i} className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm flex gap-4">
-                    <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${item.bg} ${item.color}`}>
-                        <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                    <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 bg-green-100 text-green-600`}>
+                        <span className="material-symbols-outlined text-[20px]">person_check</span>
                     </div>
                     <div className="flex-1">
                         <div className="flex justify-between items-start">
                             <h4 className="text-sm font-bold text-slate-900 dark:text-white">{item.title}</h4>
-                            <span className="text-xs text-slate-400">{item.time}</span>
+                            <span className="text-xs text-slate-400">{new Date(item.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                         </div>
                         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{item.desc}</p>
                     </div>
                 </div>
-            ))}
+            )))}
         </div>
       </div>
     </div>
