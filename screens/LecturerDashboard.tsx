@@ -21,6 +21,9 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'settings'>('dashboard');
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<any | null>(null);
+  const [historyDetails, setHistoryDetails] = useState<any[]>([]);
+  const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
 
   // Attendance Session State
   const [showStartModal, setShowStartModal] = useState(false);
@@ -50,6 +53,50 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
     } finally {
       setLoadingHistory(false);
     }
+  };
+
+  const fetchHistoryDetails = async (sessionCode: string) => {
+    setLoadingHistoryDetails(true);
+    try {
+        const res = await fetch(`/api/attendance/record?sessionCode=${sessionCode}&includeDetails=true`);
+        const data = await res.json();
+        if (data.students) {
+            setHistoryDetails(data.students);
+        }
+    } catch (error) {
+        console.error('Error fetching history details:', error);
+    } finally {
+        setLoadingHistoryDetails(false);
+    }
+  };
+
+  const handleHistoryItemClick = (item: any) => {
+      setSelectedHistoryItem(item);
+      fetchHistoryDetails(item.sessionCode);
+  };
+
+  const downloadCSV = () => {
+    if (!selectedHistoryItem || historyDetails.length === 0) return;
+
+    const headers = ['Student Name', 'Student ID', 'Check-in Time'];
+    const rows = historyDetails.map(student => [
+        student.studentName,
+        student.studentId,
+        new Date(student.timestamp).toLocaleString()
+    ]);
+
+    const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedHistoryItem.courseCode}_${selectedHistoryItem.sessionCode}_attendance.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const fetchCourses = async () => {
@@ -297,7 +344,11 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
                </div>
             ) : (
               history.map((item) => (
-                <div key={item.sessionCode} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm flex items-center justify-between">
+                <div 
+                    key={item.sessionCode} 
+                    onClick={() => handleHistoryItemClick(item)}
+                    className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                >
                    <div className="flex items-center gap-4">
                       <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 text-blue-600 rounded-xl flex flex-col items-center justify-center">
                           <span className="text-xs font-bold uppercase">{new Date(item.timestamp).toLocaleString('default', { month: 'short' })}</span>
@@ -317,6 +368,67 @@ const LecturerDashboard: React.FC<LecturerDashboardProps> = ({ user, onLogout, o
                    </div>
                 </div>
               ))
+            )}
+
+            {/* History Details Modal */}
+            {selectedHistoryItem && (
+                <div className="fixed inset-0 z-[60] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col animate-in slide-in-from-bottom">
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                            <div>
+                                <h3 className="font-bold text-xl text-slate-900 dark:text-white">{selectedHistoryItem.courseName}</h3>
+                                <p className="text-xs text-slate-500">{new Date(selectedHistoryItem.timestamp).toLocaleString()}</p>
+                            </div>
+                            <button 
+                                onClick={() => setSelectedHistoryItem(null)}
+                                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                            >
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-bold text-sm text-slate-900 dark:text-white">Attendees List</h4>
+                                <span className="text-xs font-bold px-2 py-1 bg-green-100 text-green-700 rounded-lg">{historyDetails.length} Present</span>
+                            </div>
+
+                            {loadingHistoryDetails ? (
+                                <div className="flex justify-center py-10">
+                                    <span className="material-symbols-outlined animate-spin text-primary text-3xl">progress_activity</span>
+                                </div>
+                            ) : historyDetails.length === 0 ? (
+                                <p className="text-center text-slate-400 py-10">No detailed records found.</p>
+                            ) : (
+                                historyDetails.map((student, idx) => (
+                                    <div key={idx} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                        <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">
+                                            {student.studentName?.charAt(0) || '?'}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 dark:text-white text-sm">{student.studentName}</h4>
+                                            <p className="text-xs text-slate-500">{student.studentId}</p>
+                                        </div>
+                                        <div className="ml-auto text-xs font-mono text-slate-400">
+                                            {new Date(student.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="p-6 border-t border-slate-100 dark:border-slate-800">
+                            <button 
+                                onClick={downloadCSV}
+                                disabled={loadingHistoryDetails || historyDetails.length === 0}
+                                className="w-full py-4 bg-primary hover:bg-blue-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <span className="material-symbols-outlined">download</span>
+                                Export as CSV
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
           </div>
         )}

@@ -20,9 +20,17 @@ export async function GET(req: Request) {
     // If details are requested, fetch the list of students
     let students = [];
     if (searchParams.get('includeDetails') === 'true') {
-      students = await Attendance.find({ sessionCode })
-        .select('studentName studentId timestamp')
+      // Find attendance records and populate the studentId field to get the user's studentId string
+      const records = await Attendance.find({ sessionCode })
+        .populate('studentId', 'studentId') // Populate the referenced User document, selecting only 'studentId'
         .sort({ timestamp: -1 });
+
+      // Transform the result to return the actual student ID string instead of the ObjectId
+      students = records.map(record => ({
+        studentName: record.studentName,
+        studentId: (record.studentId as any)?.studentId || 'N/A', // Access the populated field
+        timestamp: record.timestamp
+      }));
     }
 
     return NextResponse.json({ count, students }, { status: 200 });
